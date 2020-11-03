@@ -197,8 +197,8 @@ cat ${model}/*.info | sed -n '/\[Decode_options\]/{:a;n;/^\[/q;p;ba}' >>decode.s
 cat local/decode_template | sed -n '/^\*\*\*\* INSERT DECODE_OPTIONS \*\*\*\*/{:a;n;/^\*\*\*\* INSERT FEATURES \*\*\*\*/b;p;ba}' >>decode.sh
 cat ${model}/*.info | \
 	sed -n '/\[Features\]/{:a;n;/^\[/q;p;ba}' | \
-	sed 's%\[data\]%$data/ALL%g' | \
-	sed 's%\[log\]%$data/ALL/log%g' | \
+	sed 's%\[data\]%$datadir/ALL%g' | \
+	sed 's%\[log\]%$datadir/ALL/log%g' | \
 	sed "s%\[graph\]%$graphpath%g" | \
 	sed "s%\[models\]%$model%g" | \
 	sed 's/--nj/--nj $this_nj/' | \
@@ -209,8 +209,8 @@ cat local/decode_template | sed -n '/^\*\*\*\* INSERT FEATURES \*\*\*\*/{:a;n;/^
 
 cat ${model}/*.info | \
 	sed -n '/\[Decode\]/{:a;n;/^\[/q;p;ba}' | \
-	sed 's%\[data\]%$data/ALL%g' | \
-	sed 's%\[log\]%$data/ALL/log%g' | \
+	sed 's%\[data\]%$datadir/ALL%g' | \
+	sed 's%\[log\]%$datadir/ALL/log%g' | \
 	sed "s%\[graph\]%$graphpath%g" | \
 	sed "s%\[models\]%$model%g" | \
 	sed 's%\[extractor\]%$extractor%g' | \
