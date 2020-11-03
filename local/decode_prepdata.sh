@@ -15,7 +15,7 @@ while [[ $# > 1 ]] ; do
 	i=$1
 	shift
 	if [ -f $i ]; then
-		filetype=$(file -ib $i)
+		filetype=$(file -b $i)
 		if [[ $filetype =~ .*audio.* ]]; then
 			echo "Argument $i is a sound file, using it as audio"		
 			if $copyall; then			
