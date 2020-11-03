@@ -99,7 +99,7 @@ fi
 
 result=${!#}
 inter="${result}/intermediate"
-data="${inter}/data"
+datadir="${inter}/data"
 logging="${inter}/log"
 rescore=$inter/decode
 
@@ -119,7 +119,7 @@ if [ $stage -le 3 ]; then
 fi
 
 # determine maximum number of jobs for this feature generation and decoding
-numspeak=$(cat $data/ALL/spk2utt | wc -l)
+numspeak=$(cat $datadir/ALL/spk2utt | wc -l)
 if (( $numspeak == 0 )); then echo "No speech found, exiting."; exit
 elif (( $nj > $numspeak )); then this_nj=$numspeak; echo "Number of speakers is less than $nj, reducing number of jobs to $this_nj"
 else this_nj=$nj
@@ -137,8 +137,8 @@ fi
 if [ $stage -le 7 ]; then
 	echo "Decoding" >$inter/stage
 	echo -n "Duration of speech: "
-	cat $data/ALL/segments | awk '{s+=$4-$3} END {printf("%.0f", s)}' | local/convert_time.sh
-	totallines=$(cat $data/ALL/segments | wc -l)
+	cat $datadir/ALL/segments | awk '{s+=$4-$3} END {printf("%.0f", s)}' | local/convert_time.sh
+	totallines=$(cat $datadir/ALL/segments | wc -l)
 	rm -r -f ${inter}/decode
 **** INSERT DECODE ****
 	mv $inter/time.log $inter/time.decode.log
@@ -148,7 +148,7 @@ fi
 if [ $stage -le 9 ] && [ $llmodel ] && [ -e $inter/decode/num_jobs ]; then 
 	echo "Rescoring" >$inter/stage	
 	numjobs=$(< $inter/decode/num_jobs)
-	eval $timer steps/lmrescore_const_arpa.sh --skip-scoring true $lpath $llpath $data/ALL $inter/decode $inter/rescore >>$logging 2>&1 &           
+	eval $timer steps/lmrescore_const_arpa.sh --skip-scoring true $lpath $llpath $datadir/ALL $inter/decode $inter/rescore >>$logging 2>&1 &           
 	pid=$!
 	spin='-\|/'
 	i=0
@@ -181,7 +181,7 @@ if [ $stage -le 11 ] && [ -e $rescore/num_jobs ]; then
 	echo -e "Producing output" >$inter/stage   
 	
 	frame_shift_opt=
-	rm -f $data/ALL/1Best.* $result/1Best* $rescore/1Best.*
+	rm -f $datadir/ALL/1Best.* $result/1Best* $rescore/1Best.*
 	
 	numjobs=$(< $rescore/num_jobs)
 
@@ -204,14 +204,14 @@ if [ $stage -le 11 ] && [ -e $rescore/num_jobs ]; then
 				lattice-add-penalty --word-ins-penalty=$wip ark:- ark:- \| \
 				lattice-align-words $wordbound $model/final.mdl ark:- ark:- \| \
 				lattice-to-ctm-conf $frame_shift_opt --inv-acoustic-scale=$iac ark:- - \| utils/int2sym.pl -f 5 $symtab \| \
-				local/ctm_time_correct.pl $data/ALL/segments \| sort \> $rescore/1Best.${ident}JOB.ctm | exit 1;
+				local/ctm_time_correct.pl $datadir/ALL/segments \| sort \> $rescore/1Best.${ident}JOB.ctm | exit 1;
 			cat $rescore/1Best.${ident}*.ctm >$rescore/1Best_raw.${ident}ctm
 
 			cat $rescore/1Best_raw.${ident}ctm | sort -k1,1 -k3,3n | local/remove_hyphens.pl | \
 				perl local/combine_numbers.pl | sort -k1,1 -k3,3n | local/compound-restoration.pl 2>>$logging | \
 				grep -E --text -v 'uh|<unk>' >$result/1Best.${ident}ctm
-			[ -s $data/ALL/all.glm ] && mv $result/1Best.${ident}ctm $rescore/1Best_prefilt.${ident}ctm && \
-				cat $rescore/1Best_prefilt.${ident}ctm | csrfilt.sh -s -i ctm -t hyp $data/ALL/all.glm >$result/1Best.${ident}ctm
+			[ -s $datadir/ALL/all.glm ] && mv $result/1Best.${ident}ctm $rescore/1Best_prefilt.${ident}ctm && \
+				cat $rescore/1Best_prefilt.${ident}ctm | csrfilt.sh -s -i ctm -t hyp $datadir/ALL/all.glm >$result/1Best.${ident}ctm
 
 			[ $ident ] && ident="-i '$ident'"
 			local/Create_JSON.py -t $json $splittext $ident $result
@@ -220,16 +220,16 @@ if [ $stage -le 11 ] && [ -e $rescore/num_jobs ]; then
 fi
 
 ## score if reference transcription exists
-if [ $stage -le 13 ] && [ -s $data/ALL/ref.stm ]; then
+if [ $stage -le 13 ] && [ -s $datadir/ALL/ref.stm ]; then
 	echo -e "Scoring" >$inter/stage
 	# score using asclite, then produce alignments and reports using sclite
-	[ -s $data/ALL/test.uem ] && uem="-uem $data/ALL/test.uem"
+	[ -s $datadir/ALL/test.uem ] && uem="-uem $datadir/ALL/test.uem"
 	for iac in $inv_acoustic_scale; do
 		for wip in $word_ins_penalty; do
 			ident=
 			[ $mwip ] && ident="$wip."
 			[ $miac ] && ident="$ident$iac."
-			asclite -D -noisg -r $data/ALL/ref.stm stm -h $result/1Best.${ident}ctm ctm $uem -o sgml >>$logging 2>&1 
+			asclite -D -noisg -r $datadir/ALL/ref.stm stm -h $result/1Best.${ident}ctm ctm $uem -o sgml >>$logging 2>&1 
 			cat $result/1Best.${ident}ctm.sgml | sclite -P -o sum -o pralign -o dtl -n $result/1Best.${ident}ctm  >>$logging 2>&1
 			[ $(cat $result/1Best.${ident}ctm.sys | grep 'MS\|FS\|MT\|FT' | wc -l) -gt 0 ] && local/split_results.sh $result/1Best.${ident}ctm.sys $result/1Best.${ident}ctm.sys.split
 		done
