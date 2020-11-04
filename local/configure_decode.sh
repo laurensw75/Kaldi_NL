@@ -146,8 +146,14 @@ graphloc=$(cat ${model}/*.info | sed -n '/\[Graph\]/{:a;n;/^\[/q;p;ba}' | head -
 graphpath=$(echo $lmodelpath | cut -d'/' -f3,4,6,7 | tr '/' '_')
 [ ! "$graphloc" ] && graphloc=$model
 graphpath="${graphloc}/graph_${graphpath}_${LGpath}"
+overwrite=
 
-[ ! -d $lmodelpath/LG_${LGpath} ] || [ ! -d ${graphpath} ] && graphwarnstr="\nWARNING: for this configuration a decode graph needs to be created. For large language models, this may take a while.\n\n"
+if [ ! -d $lmodelpath/LG_${LGpath} ] || [ ! -d ${graphpath} ]; then
+	graphwarnstr="\nWARNING: for this configuration a decode graph needs to be created. For large language models, this may take a while.\n\n"
+else
+	dialog --stdout --defaultno --no-label "Use existing graphs" --yes-label "Create new graphs" --yesno "The graphs for this configuration already exist. If you have reason to believe these are not working properly, you may wish to overwrite them with fresh ones.\n\nWhould you like to use the existing graphs or generate new ones?" 0 0
+	[ $? -eq 0 ] && overwrite=true && graphwarnstr="\nWARNING: for this configuration a decode graph needs to be created. For large language models, this may take a while.\n\n"
+fi
 
 dialog --stdout --yesno "Confirm your choices:\n\nAcoustic Model:\n${model}\n\nLexicon:\n${lexiconlit}\n\n${extractstr}Language Model:\n${lmodel}\n\n${llmodelstr}\n${graphwarnstr}" 0 0
 [ ! $? -eq 0 ] && echo "Cancelled" && exit
@@ -155,13 +161,13 @@ dialog --stdout --yesno "Confirm your choices:\n\nAcoustic Model:\n${model}\n\nL
 ##
 ## Generate graphs
 ##
-if [ ! -d $lmodelpath/LG_${LGpath} ]; then 
+if [ "$overwrite" = true ] || [ ! -d $lmodelpath/LG_${LGpath} ]; then 
 	dialog --backtitle "Graph Generation" --infobox "Creating Decode Graph, This May Take A While \n\nCreating LG" 8 30
-	mkdir $lmodelpath/LG_${LGpath}	
+	mkdir -p $lmodelpath/LG_${LGpath}	
 	cp $model/../../../phones.txt $lmodelpath/LG_${LGpath}/
 	local/Arpa2LG.sh $lmodel $lexicon $lmodelpath/LG_${LGpath} >>configure.log 2>&1
 fi
-if [ ! -d ${graphpath} ]; then
+if [ "$overwrite" = true ] || [ ! -d ${graphpath} ]; then
 	dialog --backtitle "Graph Generation" --infobox "Creating Decode Graph, This May Take A While \n\nCreating HCLG" 8 30
 	graph_options=$(cat ${model}/*.info | sed -n '/\[Graph_options\]/{:a;n;/^\[/q;p;ba}')
 	utils/mkgraph.sh $graph_options $lmodelpath/LG_${LGpath} $graphloc $graphpath >>configure.log 2>&1 || exit 1;
@@ -172,7 +178,7 @@ if [ "$llmodel" ]; then
 	LLM=$(basename $llmodel | sed "s%\.arpa.gz%%")
 	constLMpath=$(echo $llmodel | cut -d'/' -f3,4,6,7 | tr '/' '_')
 	constLMpath="$lmodelpath/LG_${LGpath}/Const_${constLMpath}_${LLM}"
-	if [ ! -d ${constLMpath} ]; then
+	if [ "$overwrite" = true ] || [ ! -d ${constLMpath} ]; then
 		dialog --backtitle "Const LM Generation" --infobox "Creating ConstLM for rescore, This May Take A While \n\nCreating ConstLM" 8 30
 		utils/build_const_arpa_lm.sh $llmodel $lmodelpath/LG_${LGpath}/lang $constLMpath >>configure.log 2>&1 || exit 1;	
 	fi

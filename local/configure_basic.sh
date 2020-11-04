@@ -7,6 +7,7 @@ kaldiroot=$(cat path.sh | grep "export KALDI_ROOT=" | awk -F'=' '{print $2}')
 return_value=0
 modelpack=
 
+chmod +x local/Create_JSON.py
 while [ ! -d $kaldiroot/egs ] && [ $return_value -eq 0 ]; do
 	kaldiroot=$(dialog --stdout --title "KALDI_ROOT not properly set" --inputbox "Enter location of your KALDI installation " 0 0 "$kaldiroot")
 	return_value=$?
